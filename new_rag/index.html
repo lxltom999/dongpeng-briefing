@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>竞品情报 RAG · 智能搜索</title>
+<style>
+  :root {
+    --primary: #1a237e;
+    --primary-light: #3f51b5;
+    --primary-dark: #0d1452;
+    --accent: #ff6b35;
+    --bg: #f0f2f5;
+    --card: #ffffff;
+    --text: #1a1a2e;
+    --text-muted: #6b7280;
+    --border: #e5e7eb;
+    --success: #10b981;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── 侧边栏 ── */
+  .sidebar {
+    width: 240px;
+    background: var(--primary-dark);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .sidebar-logo {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .brand-name { color: #fff; font-size: 15px; font-weight: 700; margin-top: 10px; }
+  .brand-sub { color: rgba(255,255,255,0.4); font-size: 11px; }
+  .sidebar-nav { padding: 16px 12px; flex: 1; overflow-y: auto; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 8px;
+    color: rgba(255,255,255,0.6); font-size: 13.5px;
+    cursor: pointer; transition: all 0.15s; margin-bottom: 2px;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+  .nav-item.active { background: rgba(255,107,53,0.15); color: var(--accent); font-weight: 600; }
+  .nav-icon { font-size: 15px; width: 20px; text-align: center; }
+  .sidebar-stats {
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.35);
+    font-size: 11px; line-height: 1.8;
+  }
+
+  /* ── 主区 ── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar {
+    background: var(--card); border-bottom: 1px solid var(--border);
+    padding: 14px 28px; display: flex; align-items: center;
+    justify-content: space-between; flex-shrink: 0;
+  }
+  .page-title { font-size: 16px; font-weight: 600; }
+
+  /* ── 聊天区 ── */
+  .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .messages {
+    flex: 1; overflow-y: auto; padding: 24px 28px;
+    scroll-behavior: smooth;
+  }
+  .msg { margin-bottom: 20px; max-width: 85%; }
+  .msg.user { margin-left: auto; }
+  .msg.bot { margin-right: auto; }
+  .msg-bubble {
+    padding: 14px 18px; border-radius: 12px;
+    line-height: 1.7; font-size: 14px;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .msg.user .msg-bubble {
+    background: var(--primary); color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .msg.bot .msg-bubble {
+    background: var(--card); border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .msg.bot .msg-meta {
+    font-size: 11px; color: var(--text-muted);
+    margin-top: 6px; padding-left: 4px;
+  }
+
+  /* ── 输入区 ── */
+  .input-area {
+    padding: 16px 28px 20px; border-top: 1px solid var(--border);
+    background: var(--card);
+  }
+  .input-row { display: flex; gap: 10px; align-items: flex-end; }
+  .input-wrap {
+    flex: 1; position: relative;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--bg); transition: border-color 0.2s;
+  }
+  .input-wrap:focus-within { border-color: var(--primary); }
+  .input-wrap textarea {
+    width: 100%; border: none; background: transparent;
+    padding: 12px 14px; font-size: 14px; line-height: 1.5;
+    font-family: inherit; resize: none; outline: none;
+    min-height: 48px; max-height: 120px;
+  }
+  .send-btn {
+    padding: 12px 24px; background: var(--primary); color: #fff;
+    border: none; border-radius: 10px; font-size: 14px;
+    font-weight: 600; cursor: pointer; transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .send-btn:hover { background: var(--primary-light); }
+  .send-btn:disabled { background: var(--border); cursor: not-allowed; }
+  .input-hint {
+    font-size: 11px; color: var(--text-muted);
+    margin-top: 6px; padding-left: 2px;
+  }
+
+  /* ── 示例问题 ── */
+  .suggestions {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;
+  }
+  .suggestion-chip {
+    padding: 6px 14px; border: 1px solid var(--border);
+    border-radius: 16px; font-size: 12px; color: var(--text-muted);
+    cursor: pointer; transition: all 0.15s; background: var(--bg);
+  }
+  .suggestion-chip:hover {
+    border-color: var(--primary); color: var(--primary);
+    background: #eef0ff;
+  }
+
+  /* ── 加载动画 ── */
+  .typing { display: flex; gap: 4px; padding: 4px 0; }
+  .typing span {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text-muted); animation: bounce 1.4s infinite ease-in-out;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  /* ── 知识库面板 ── */
+  .kb-panel { display: none; }
+  .kb-panel.active { display: block; padding: 20px 28px; overflow-y: auto; flex: 1; }
+  .kb-header { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+  .kb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+  .kb-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px; cursor: pointer;
+    transition: box-shadow 0.15s;
+  }
+  .kb-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .kb-card .kb-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .kb-card .kb-meta { font-size: 11px; color: var(--text-muted); }
+  .kb-card .kb-tag {
+    display: inline-block; padding: 1px 6px; border-radius: 4px;
+    font-size: 10px; font-weight: 600; margin-right: 3px;
+    background: #eef0ff; color: var(--primary);
+  }
+
+  /* ── 来源卡片 ── */
+  .source-list { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
+  .source-item { font-size: 12px; color: var(--text-muted); margin: 2px 0; }
+  .source-item .score { display: inline-block; padding: 0 4px; border-radius: 3px; font-size: 10px; background: #e8f5e9; color: #2e7d32; margin-right: 4px; }
+
+  /* ── 移动端 ── */
+  @media(max-width: 768px) {
+    .sidebar { display: none; }
+    .messages { padding: 16px; }
+    .msg { max-width: 95%; }
+    .input-area { padding: 12px 16px 16px; }
+    .suggestions { gap: 6px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 侧边栏 -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">🥤</div>
+    <div class="brand-name">竞品情报 RAG</div>
+    <div class="brand-sub">东鹏饮料 · 华西战区</div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-item active" onclick="switchTab('chat')">
+      <span class="nav-icon">💬</span> 情报问答
+    </div>
+    <div class="nav-item" onclick="switchTab('browse')">
+      <span class="nav-icon">📚</span> 知识库浏览
+    </div>
+  </div>
+  <div class="sidebar-stats" id="sidebarStats">
+    <div>加载统计中...</div>
+  </div>
+</div>
+
+<!-- 主区 -->
+<div class="main">
+
+  <!-- 顶栏 -->
+  <div class="topbar">
+    <div class="page-title">🥤 竞品情报 <span style="color:var(--accent)">智能检索</span></div>
+    <div style="font-size:12px;color:var(--text-muted)">数据来源：每日竞品早报</div>
+  </div>
+
+  <!-- 聊天面板 -->
+  <div id="chatPanel" class="chat-area">
+    <div class="messages" id="messages">
+      <div class="msg bot">
+        <div class="msg-bubble">
+👋 早上好！我是竞品情报助手。
+
+你可以问我：
+• <strong>红牛有什么扫码活动？</strong>
+• <strong>外星人一元乐享中奖率多少？</strong>
+• <strong>电解质水价格战情况</strong>
+• <strong>华西战区行动建议</strong>
+• <strong>补水啦最近动态</strong>
+• <strong>战马和红牛的扫码活动对比</strong>
+
+直接输入问题，我从历史早报数据中帮你检索。
+        </div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="suggestions" id="suggestions">
+        <span class="suggestion-chip" onclick="ask('红牛2026年有什么扫码活动？')">🔴 红牛扫码活动</span>
+        <span class="suggestion-chip" onclick="ask('外星人超能水3元')">👽 外星人超能水</span>
+        <span class="suggestion-chip" onclick="ask('电解质水价格战')">💧 电解质价格战</span>
+        <span class="suggestion-chip" onclick="ask('华西战区行动建议')">🎯 华西行动建议</span>
+        <span class="suggestion-chip" onclick="ask('补水啦最新动态')">💪 补水啦动态</span>
+      </div>
+      <div class="input-row">
+        <div class="input-wrap">
+          <textarea id="input" rows="1" placeholder="输入竞品情报问题..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"></textarea>
+        </div>
+        <button class="send-btn" id="sendBtn" onclick="send()">搜索</button>
+      </div>
+      <div class="input-hint">Enter 发送 · Shift+Enter 换行</div>
+    </div>
+  </div>
+
+  <!-- 知识库浏览面板 -->
+  <div id="kbPanel" class="kb-panel">
+    <div class="kb-header">📚 知识库浏览</div>
+    <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <select id="kbCategoryFilter" onchange="loadKnowledgeBase()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--card)">
+        <option value="">所有品类</option>
+      </select>
+      <select id="kbTypeFilter" onchange="loadKnowledgeBase()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--card)">
+        <option value="">所有类型</option>
+        <option value="promotion">扫码促销</option>
+        <option value="news">品类动态</option>
+        <option value="trend">行业趋势</option>
+        <option value="action_tip">行动建议</option>
+      </select>
+      <span id="kbCount" style="font-size:13px;color:var(--text-muted);line-height:36px"></span>
+    </div>
+    <div class="kb-grid" id="kbGrid"></div>
+  </div>
+
+</div>
+
+<script>
+// ─── 面板切换 ───
+function switchTab(tab) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('chatPanel').style.display = tab === 'chat' ? 'flex' : 'none';
+  document.getElementById('kbPanel').classList.toggle('active', tab === 'browse');
+  if (tab === 'browse') loadKnowledgeBase();
+  event.target.closest('.nav-item').classList.add('active');
+}
+
+// ─── 加载统计 ───
+async function loadStats() {
+  try {
+    const r = await fetch('/api/stats');
+    const data = await r.json();
+    document.getElementById('sidebarStats').innerHTML =
+      `📊 <strong>${data.total}</strong> 条情报知识<br>` +
+      `📂 ${Object.keys(data.categories).length} 个品类<br>` +
+      `🏷️ ${Object.keys(data.brands||{}).length} 个品牌<br>` +
+      `📅 ${Object.keys(data.dates||{}).length} 期数据`;
+
+    // 填充品类下拉
+    const sel = document.getElementById('kbCategoryFilter');
+    (data.categories ? Object.keys(data.categories) : []).sort().forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c; opt.textContent = c + ' (' + data.categories[c] + '条)';
+      sel.appendChild(opt);
+    });
+  } catch(e) { console.log('Stats not ready'); }
+}
+loadStats();
+
+// ─── 发送问答 ───
+function ask(text) {
+  document.getElementById('input').value = text;
+  send();
+}
+
+async function send() {
+  const input = document.getElementById('input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  document.getElementById('sendBtn').disabled = true;
+  autoResize(input);
+
+  addMessage(text, 'user');
+  const typingId = showTyping();
+
+  try {
+    const r = await fetch('/api/query', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({query: text}),
+    });
+    const data = await r.json();
+    removeTyping(typingId);
+
+    let answer = data.answer || '未找到相关结果。';
+    // 来源
+    let srcHtml = '';
+    if (data.sources && data.sources.length) {
+      srcHtml = '<div class="source-list">';
+      data.sources.forEach(s => {
+        const score = Math.round((s.score || 0) * 100);
+        srcHtml += `<div class="source-item"><span class="score">${score}%</span>`;
+        if (s.brand) srcHtml += `[${s.brand}] `;
+        srcHtml += `${s.title} <span style="color:#94a3b8">· ${s.category || ''} · ${s.date || ''}</span></div>`;
+      });
+      srcHtml += `</div>`;
+    }
+    addMessage(answer + srcHtml, 'bot');
+  } catch(e) {
+    removeTyping(typingId);
+    addMessage('⚠️ 请求失败，请确认 RAG 服务已启动。', 'bot');
+  }
+
+  document.getElementById('sendBtn').disabled = false;
+}
+
+function addMessage(text, role) {
+  const msg = document.createElement('div');
+  msg.className = 'msg ' + role;
+  msg.innerHTML = `<div class="msg-bubble">${text}</div>`;
+  document.getElementById('messages').appendChild(msg);
+  scrollToBottom();
+}
+
+function showTyping() {
+  const id = 'typing-' + Date.now();
+  const msg = document.createElement('div');
+  msg.className = 'msg bot';
+  msg.id = id;
+  msg.innerHTML = '<div class="msg-bubble"><div class="typing"><span></span><span></span><span></span></div></div>';
+  document.getElementById('messages').appendChild(msg);
+  scrollToBottom();
+  return id;
+}
+
+function removeTyping(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+function scrollToBottom() {
+  const m = document.getElementById('messages');
+  m.scrollTop = m.scrollHeight;
+}
+
+function autoResize(textarea) {
+  textarea.style.height = 'auto';
+  textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+}
+document.getElementById('input').addEventListener('input', function(){autoResize(this)});
+
+// ─── 知识库浏览 ───
+async function loadKnowledgeBase() {
+  const grid = document.getElementById('kbGrid');
+  const category = document.getElementById('kbCategoryFilter').value;
+  const type = document.getElementById('kbTypeFilter').value;
+
+  let url = '/api/filter?';
+  if (category) url += 'category=' + encodeURIComponent(category) + '&';
+  if (type) {
+    // 类型映射到 category
+    if (type === 'trend') url += 'category=行业趋势&';
+    else if (type === 'action_tip') url += 'category=行动建议&';
+  }
+
+  try {
+    const r = await fetch(url);
+    const data = await r.json();
+    grid.innerHTML = '';
+    document.getElementById('kbCount').textContent = `共 ${data.total} 条`;
+
+    if (!data.results || !data.results.length) {
+      grid.innerHTML = '<div style="color:var(--text-muted);padding:20px">暂无数据</div>';
+      return;
+    }
+
+    data.results.forEach(d => {
+      const card = document.createElement('div');
+      card.className = 'kb-card';
+      const tag = d.data_type === 'promotion' ? '🎟️促销' :
+                  d.data_type === 'news' ? '📰动态' :
+                  d.data_type === 'trend' ? '📈趋势' : '💡建议';
+      card.innerHTML =
+        `<div class="kb-title">${tag} ${d.title}</div>` +
+        `<div class="kb-meta">` +
+          (d.brand ? `<span class="kb-tag">${d.brand}</span>` : '') +
+          (d.category ? `<span class="kb-tag">${d.category}</span>` : '') +
+          (d.date ? ` · ${d.date}` : '') +
+        `</div>` +
+        `<div style="font-size:12px;color:var(--text-muted);margin-top:4px">${d.snippet}</div>`;
+      grid.appendChild(card);
+    });
+  } catch(e) {
+    grid.innerHTML = '<div style="color:var(--text-muted);padding:20px">加载失败，确认服务已启动</div>';
+  }
+}
+</script>
+</body>
+</html>
