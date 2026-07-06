@@ -1,0 +1,21 @@
+# git ignore for dongpeng-briefing
+# only index.html needs to be tracked
+*.json
+*.py
+*.log
+*.bat
+*.sh
+*.pptx
+*.xlsx
+*.zip
+*.pak
+*.dll
+*.dat
+*.bin
+*.png
+*.jpg
+*.jpeg
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
